@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWOT-Analyse Tool</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f3; color: #1a1a18; min-height: 100vh; padding: 24px 16px; }
+        h1 { font-size: 22px; font-weight: 500; margin-bottom: 20px; color: #1a1a18; }
+        .swot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .quadrant { background: #ffffff; border: 0.5px solid rgba(0,0,0,0.15); border-radius: 12px; padding: 16px; }
+        .q-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .q-badge { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 15px; flex-shrink: 0; }
+        .q-title { font-size: 14px; font-weight: 500; color: #1a1a18; }
+        .q-sub { font-size: 11px; color: #888780; margin-top: 1px; }
+        .item-list { display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
+        .item-row { display: flex; align-items: center; gap: 8px; }
+        .item-text { flex: 1; background: #f1efe8; border: 0.5px solid rgba(0,0,0,0.15); border-radius: 8px; padding: 7px 10px; font-size: 13px; color: #1a1a18; outline: none; font-family: inherit; }
+        .item-text:focus { border-color: rgba(0,0,0,0.4); }
+        .item-text::placeholder { color: #888780; }
+        .rating-wrap { display: flex; gap: 3px; flex-shrink: 0; }
+        .star { width: 18px; height: 18px; cursor: pointer; border: none; background: none; padding: 0; display: flex; align-items: center; justify-content: center; }
+        .star svg { width: 14px; height: 14px; transition: transform 0.1s; }
+        .star:hover svg { transform: scale(1.15); }
+        .del-btn { width: 24px; height: 24px; border: none; background: none; cursor: pointer; color: #888780; display: flex; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0; font-size: 16px; line-height: 1; }
+        .del-btn:hover { color: #A32D2D; background: #FCEBEB; }
+        .add-btn { margin-top: 10px; width: 100%; padding: 7px; border: 0.5px dashed rgba(0,0,0,0.3); border-radius: 8px; background: none; cursor: pointer; font-size: 12px; color: #5F5E5A; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s; font-family: inherit; }
+        .add-btn:hover { background: #f1efe8; }
+        .result-panel { background: #ffffff; border: 0.5px solid rgba(0,0,0,0.15); border-radius: 12px; padding: 20px; }
+        .result-header { font-size: 13px; font-weight: 500; color: #5F5E5A; margin-bottom: 16px; letter-spacing: 0.04em; text-transform: uppercase; }
+        .score-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+        .score-card { background: #f1efe8; border-radius: 8px; padding: 10px 12px; text-align: center; }
+        .score-label { font-size: 11px; color: #888780; margin-bottom: 4px; }
+        .score-val { font-size: 20px; font-weight: 500; }
+        .bar-section { margin-bottom: 16px; }
+        .bar-label { display: flex; justify-content: space-between; font-size: 12px; color: #5F5E5A; margin-bottom: 6px; }
+        .bar-track { height: 8px; background: #f1efe8; border-radius: 99px; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+        .verdict-box { border-radius: 8px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px; }
+        .verdict-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; color: #fff; }
+        .verdict-title { font-size: 14px; font-weight: 500; margin-bottom: 3px; }
+        .verdict-desc { font-size: 12px; line-height: 1.5; }
+        .s-badge { background: #EAF3DE; color: #3B6D11; }
+        .w-badge { background: #FCEBEB; color: #A32D2D; }
+        .o-badge { background: #E1F5EE; color: #0F6E56; }
+        .t-badge { background: #FAEEDA; color: #854F0B; }
+        @media (max-width: 600px) {
+          .swot-grid { grid-template-columns: 1fr; }
+          .score-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+<h1>SWOT-Analyse</h1>
+<div class="swot-grid" id="swot-grid"></div>
+<div class="result-panel" id="result-panel"></div>
+
+<script>
+    const QUADRANTS = [
+      { key:'S', label:'Stärken', sub:'Interne Vorteile', cls:'s-badge', color:'#639922', barColor:'#639922', textColor:'#3B6D11' },
+      { key:'W', label:'Schwächen', sub:'Interne Nachteile', cls:'w-badge', color:'#E24B4A', barColor:'#E24B4A', textColor:'#A32D2D' },
+      { key:'O', label:'Chancen', sub:'Externe Möglichkeiten', cls:'o-badge', color:'#1D9E75', barColor:'#1D9E75', textColor:'#0F6E56' },
+      { key:'T', label:'Risiken', sub:'Externe Bedrohungen', cls:'t-badge', color:'#BA7517', barColor:'#BA7517', textColor:'#854F0B' }
+    ];
+
+    let state = {
+      S: [{ id: 1, text: '', rating: 0 }],
+      W: [{ id: 2, text: '', rating: 0 }],
+      O: [{ id: 3, text: '', rating: 0 }],
+      T: [{ id: 4, text: '', rating: 0 }]
+    };
+    let nextId = 5;
+
+    function avgRating(items) {
+      const rated = items.filter(i => i.rating > 0);
+      if (!rated.length) return 0;
+      return rated.reduce((s, i) => s + i.rating, 0) / rated.length;
+    }
+
+    function calcScore() {
+      const s = avgRating(state.S);
+      const w = avgRating(state.W);
+      const o = avgRating(state.O);
+      const t = avgRating(state.T);
+      return { s, w, o, t, net: (s + o) - (w + t) };
+    }
+
+    function getVerdict(net) {
+      const hasData = QUADRANTS.some(q => state[q.key].some(i => i.rating > 0));
+      if (!hasData) return { icon:'?', bg:'#f1efe8', iconBg:'#B4B2A9', title:'Noch keine Bewertungen', desc:'Trage Argumente ein und bewerte sie mit Sternen, um ein Ergebnis zu erhalten.', titleColor:'#1a1a18', descColor:'#5F5E5A' };
+      if (net >= 3)  return { icon:'✓', bg:'#EAF3DE', iconBg:'#639922', title:'Starke Ausgangsposition', desc:'Die Stärken und Chancen überwiegen deutlich. Strategisch empfiehlt sich ein offensives Vorgehen.', titleColor:'#3B6D11', descColor:'#3B6D11' };
+      if (net >= 1)  return { icon:'↗', bg:'#E1F5EE', iconBg:'#1D9E75', title:'Leicht positive Bilanz', desc:'Mehr Potenzial als Risiko. Chancen nutzen und gleichzeitig Schwächen gezielt adressieren.', titleColor:'#0F6E56', descColor:'#0F6E56' };
+      if (net >= -1) return { icon:'=', bg:'#FAEEDA', iconBg:'#BA7517', title:'Ausgeglichene Situation', desc:'Stärken und Schwächen halten sich die Waage. Eine klare Priorisierung ist entscheidend.', titleColor:'#854F0B', descColor:'#854F0B' };
+      if (net >= -3) return { icon:'!', bg:'#FCEBEB', iconBg:'#E24B4A', title:'Herausfordernde Lage', desc:'Risiken und Schwächen dominieren. Defensivstrategie empfohlen — Risiken minimieren, Kernstärken schützen.', titleColor:'#A32D2D', descColor:'#A32D2D' };
+      return { icon:'✕', bg:'#FCEBEB', iconBg:'#A32D2D', title:'Kritische Risikobewertung', desc:'Erhebliche Schwächen und Bedrohungen erkannt. Strategische Neuausrichtung oder intensive Risikominimierung nötig.', titleColor:'#A32D2D', descColor:'#A32D2D' };
+    }
+
+    function starSVG(filled, color) {
+      return `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><polygon points="8,1.5 9.9,6.5 15.3,6.5 11,9.8 12.7,15 8,11.8 3.3,15 5,9.8 0.7,6.5 6.1,6.5" fill="${filled ? color : '#B4B2A9'}"/></svg>`;
+    }
+
+    function renderQuadrant(q) {
+      const items = state[q.key];
+      return `<div class="quadrant">
+        <div class="q-header">
+          <div class="q-badge ${q.cls}">${q.key}</div>
+          <div><div class="q-title">${q.label}</div><div class="q-sub">${q.sub}</div></div>
+        </div>
+        <div class="item-list">
+          ${items.map(item => `
+            <div class="item-row">
+              <input class="item-text" type="text" placeholder="Argument eintragen..." value="${item.text.replace(/"/g,'&quot;')}" data-id="${item.id}" data-key="${q.key}" />
+              <div class="rating-wrap">
+                ${[1,2,3,4,5].map(n => `<button class="star" data-id="${item.id}" data-key="${q.key}" data-val="${n}" title="${n} Stern${n>1?'e':''}">${starSVG(n <= item.rating, q.color)}</button>`).join('')}
+              </div>
+              <button class="del-btn" data-del="${item.id}" data-key="${q.key}" title="Entfernen">×</button>
+            </div>
+          `).join('')}
+        </div>
+        <button class="add-btn" data-add="${q.key}">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Argument hinzufügen
+        </button>
+      </div>`;
+    }
+
+    function renderResult() {
+      const { s, w, o, t, net } = calcScore();
+      const verdict = getVerdict(net);
+      const pct = v => Math.round((v / 5) * 100);
+      const bars = [
+        { label: 'Stärken (S)', val: s, color: '#639922' },
+        { label: 'Schwächen (W)', val: w, color: '#E24B4A' },
+        { label: 'Chancen (O)', val: o, color: '#1D9E75' },
+        { label: 'Risiken (T)', val: t, color: '#BA7517' }
+      ];
+      const scoreCards = [
+        { label: 'Stärken', val: s.toFixed(1), color: '#3B6D11' },
+        { label: 'Schwächen', val: w.toFixed(1), color: '#A32D2D' },
+        { label: 'Chancen', val: o.toFixed(1), color: '#0F6E56' },
+        { label: 'Risiken', val: t.toFixed(1), color: '#854F0B' }
+      ];
+      return `
+        <div class="result-header">Ergebnis</div>
+        <div class="score-grid">
+          ${scoreCards.map(c => `<div class="score-card"><div class="score-label">${c.label}</div><div class="score-val" style="color:${c.color}">${c.val}</div></div>`).join('')}
+        </div>
+        <div class="bar-section">
+          ${bars.map(b => `<div style="margin-bottom:8px;"><div class="bar-label"><span>${b.label}</span><span>${b.val.toFixed(1)} / 5.0</span></div><div class="bar-track"><div class="bar-fill" style="width:${pct(b.val)}%;background:${b.color};"></div></div></div>`).join('')}
+        </div>
+        <div class="verdict-box" style="background:${verdict.bg};">
+          <div class="verdict-icon" style="background:${verdict.iconBg};">${verdict.icon}</div>
+          <div>
+            <div class="verdict-title" style="color:${verdict.titleColor};">${verdict.title}</div>
+            <div class="verdict-desc" style="color:${verdict.descColor};">${verdict.desc}</div>
+          </div>
+        </div>`;
+    }
+
+    function render() {
+      document.getElementById('swot-grid').innerHTML = QUADRANTS.map(renderQuadrant).join('');
+      document.getElementById('result-panel').innerHTML = renderResult();
+      bindEvents();
+    }
+
+    function bindEvents() {
+      document.querySelectorAll('.item-text').forEach(input => {
+        input.addEventListener('input', e => {
+          const item = state[e.target.dataset.key].find(i => i.id === +e.target.dataset.id);
+          if (item) { item.text = e.target.value; document.getElementById('result-panel').innerHTML = renderResult(); }
+        });
+      });
+      document.querySelectorAll('.star').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const b = e.currentTarget;
+          const item = state[b.dataset.key].find(i => i.id === +b.dataset.id);
+          if (item) { item.rating = item.rating === +b.dataset.val ? 0 : +b.dataset.val; render(); }
+        });
+      });
+      document.querySelectorAll('[data-del]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const key = e.currentTarget.dataset.key;
+          if (state[key].length > 1) { state[key] = state[key].filter(i => i.id !== +e.currentTarget.dataset.del); render(); }
+        });
+      });
+      document.querySelectorAll('[data-add]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const key = e.currentTarget.dataset.add;
+          state[key].push({ id: nextId++, text: '', rating: 0 });
+          render();
+          const inputs = document.querySelectorAll(`[data-key="${key}"].item-text`);
+          inputs[inputs.length - 1]?.focus();
+        });
+      });
+    }
+
+    render();
+</script>
+</body>
+</html>
